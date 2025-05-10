@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Yönetim Paneli - Sağlık Tesisi Kayıt Portalı</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Custom styles for dropdown */
+    .filter-dropdown {
+      display: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .filter-dropdown.show {
+      display: block;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    .filter-dropdown-container {
+      position: relative;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Active filter button styles */
+    .filter-button-active {
+      background-color: #1E40AF !important; /* darker blue */
+    }
+    
+    /* Tab content styles */
+    .tab-content {
+      position: relative;
+      width: 100%;
+    }
+    
+    .tab-pane {
+      transition: opacity 0.3s ease;
+      width: 100%;
+    }
+    
+    .tab-pane.hidden {
+      display: none !important;
+    }
+    
+    /* Active tab styles */
+    .active-tab {
+      border-bottom: 2px solid #3B82F6;
+      color: #3B82F6;
+    }
+    
+    /* Touch-friendly adjustments */
+    @media (max-width: 768px) {
+      .card-action-btn {
+        padding: 0.5rem !important;
+        margin: 0.25rem !important;
+      }
+      
+      .filter-dropdown.show {
+        width: 100%;
+        right: 0;
+        left: 0;
+        z-index: 50;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div class="min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="bg-blue-900 shadow-lg">
+      <div class="container mx-auto px-6 py-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div class="flex items-center">
+            <h1 class="text-white text-xl md:text-2xl font-semibold">Sağlık Tesisi Yönetim Paneli</h1>
+          </div>
+          <div class="flex flex-wrap items-center mt-2 md:mt-0 w-full md:w-auto">
+            <a href="/" class="text-white hover:text-blue-200 mr-4 text-sm md:text-base py-1">Ana Sayfa</a>
+            <button id="form-edit-button" class="text-white hover:text-blue-200 mr-4 text-sm md:text-base py-1">
+              <i class="fas fa-edit mr-1"></i> Form Düzenle
+            </button>
+            <button id="logout-button" class="text-white hover:text-blue-200 text-sm md:text-base py-1">Çıkış Yap</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 md:px-6 py-6 md:py-8">
+      <!-- Login Form (hidden when logged in) -->
+      <div id="login-container" class="bg-white rounded-lg shadow-md overflow-hidden max-w-md mx-auto">
+        <div class="bg-blue-700 px-6 py-4">
+          <h2 class="text-white text-xl font-medium">Yönetici Girişi</h2>
+        </div>
+        <div class="p-6">
+          <div id="login-error" class="mb-4 p-4 bg-red-50 text-red-800 rounded hidden">
+            <p>Geçersiz kullanıcı adı veya şifre!</p>
+          </div>
+          <form id="login-form" class="space-y-6">
+            <div>
+              <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Kullanıcı Adı</label>
+              <input type="text" id="username" name="username" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
+              <input type="password" id="password" name="password" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <button type="submit" class="w-full px-6 py-3 bg-blue-700 text-white font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                Giriş Yap
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Dashboard (hidden until logged in) -->
+      <div id="dashboard-container" class="hidden">
+        <!-- Page Heading -->
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+            <i class="fas fa-list-ul mr-2"></i> Başvuru Listesi
+          </h2>
+        </div>
+
+        <!-- Search and Filter Bar -->
+        <div class="bg-white p-4 rounded-lg shadow-md mb-6">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+            <!-- Search Input -->
+            <div class="relative w-full md:w-1/3">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-search text-gray-400"></i>
+              </div>
+              <input id="search-input" type="text" placeholder="Sağlık tesisi ara..." class="pl-10 w-full border border-gray-300 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="flex flex-wrap gap-2 w-full md:w-auto">
+              <!-- Status Filter -->
+              <div class="w-full md:w-auto">
+                <select id="status-filter" class="border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto">
+                  <option value="all">Tüm Durumlar</option>
+                  <option value="Bekliyor">Bekliyor</option>
+                  <option value="Onaylandı">Onaylandı</option>
+                  <option value="Tamamlandı">Tamamlandı</option>
+                  <option value="Belge Bekleniyor">Belge Bekleniyor</option>
+                  <option value="Bakanlıkta">Bakanlıkta</option>
+                  <option value="İptal Edildi">İptal Edildi</option>
+                </select>
+              </div>
+
+              <!-- Filter Button with Dropdown -->
+              <div class="relative w-full md:w-auto filter-dropdown-container">
+                <button id="filter-button" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md flex items-center w-full md:w-auto justify-center md:justify-start">
+                  <i class="fas fa-filter mr-1"></i> Filtrele
+                </button>
+                <div id="filter-dropdown" class="filter-dropdown absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-md border border-gray-200 z-50">
+                  <div class="p-4 space-y-3">
+                    <!-- Institution Type Filter -->
+                    <div>
+                      <label for="institution-filter" class="block text-sm font-medium text-gray-700 mb-1">Kurum Tipi</label>
+                      <select id="institution-filter" class="border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full text-sm">
+                        <option value="all">Tümü</option>
+                        <option value="Kamu">Kamu</option>
+                        <option value="Özel">Özel</option>
+                        <option value="Üniversite">Üniversite</option>
+                      </select>
+                    </div>
+                    <!-- City Filter (Already exists, but moved to dropdown) -->
+                    <div>
+                      <label for="city-filter" class="block text-sm font-medium text-gray-700 mb-1">Şehir</label>
+                      <select id="city-filter" class="border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full text-sm">
+                        <option value="all">Tüm Şehirler</option>
+                        <option value="İstanbul">İstanbul</option>
+                        <option value="Ankara">Ankara</option>
+                        <option value="İzmir">İzmir</option>
+                        <option value="Bursa">Bursa</option>
+                        <option value="Antalya">Antalya</option>
+                      </select>
+                    </div>
+                    <!-- Apply Filters Button -->
+                    <div class="pt-2">
+                      <button id="apply-filters" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-1.5 px-3 rounded-md text-sm">
+                        Filtre Uygula
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Facilities List -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+          <div class="border-b border-gray-200 px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center bg-gray-50">
+            <h3 class="text-lg font-medium text-gray-800 mb-2 md:mb-0">Kayıt Listesi</h3>
+            <a href="/" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center">
+              <i class="fas fa-plus mr-1"></i> Yeni Kayıt Ekle
+            </a>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th scope="col" class="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tesis Adı</th>
+                  <th scope="col" class="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kurum Tipi</th>
+                  <th scope="col" class="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Şehir</th>
+                  <th scope="col" class="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kayıt Tarihi</th>
+                  <th scope="col" class="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
+                  <th scope="col" class="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+                </tr>
+              </thead>
+              <tbody id="facilities-list" class="bg-white divide-y divide-gray-200">
+                <!-- Facilities will be populated here by JavaScript -->
+                <tr>
+                  <td colspan="6" class="px-6 py-4 text-center text-gray-500">Yükleniyor...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div id="no-facilities" class="hidden py-8 text-center">
+            <p class="text-gray-500">Hiç tesis bulunamadı.</p>
+          </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <!-- Total Facilities -->
+          <div class="bg-blue-600 text-white rounded-lg shadow-md p-3">
+            <div class="flex flex-col">
+              <div class="flex items-center mb-1">
+                <i class="fas fa-hospital text-lg mr-2"></i>
+                <h4 class="text-sm font-medium">Toplam Kayıt</h4>
+              </div>
+              <p id="total-count" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+          
+          <!-- Pending Facilities -->
+          <div class="bg-yellow-500 text-white rounded-lg shadow-md p-3">
+            <div class="flex flex-col">
+              <div class="flex items-center mb-1">
+                <i class="fas fa-clock text-lg mr-2"></i>
+                <h4 class="text-sm font-medium">Bekleyen</h4>
+              </div>
+              <p id="pending-count" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+          
+          <!-- Approved Facilities -->
+          <div class="bg-green-600 text-white rounded-lg shadow-md p-3">
+            <div class="flex flex-col">
+              <div class="flex items-center mb-1">
+                <i class="fas fa-check-circle text-lg mr-2"></i>
+                <h4 class="text-sm font-medium">Onaylanan</h4>
+              </div>
+              <p id="approved-count" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+          
+          <!-- Completed Facilities -->
+          <div class="bg-purple-600 text-white rounded-lg shadow-md p-3">
+            <div class="flex flex-col">
+              <div class="flex items-center mb-1">
+                <i class="fas fa-flag-checkered text-lg mr-2"></i>
+                <h4 class="text-sm font-medium">Tamamlanan</h4>
+              </div>
+              <p id="completed-count" class="text-2xl font-bold">0</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Facility Detail Modal -->
+      <div id="facility-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-screen overflow-auto">
+          <div class="bg-blue-700 px-6 py-4 flex justify-between items-center sticky top-0">
+            <h3 id="modal-title" class="text-white text-xl font-medium">Tesis Detayları</h3>
+            <button id="close-modal" class="text-white hover:text-blue-200">
+              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <!-- Facility Details -->
+              <div class="space-y-4 col-span-2">
+                <div class="flex items-center">
+                  <img id="facility-logo" src="" alt="" class="w-16 h-16 mr-4 rounded object-cover bg-gray-100">
+                  <div id="no-logo-modal-icon" class="w-16 h-16 mr-4 rounded flex items-center justify-center bg-gray-100 text-gray-400 hidden">
+                    <i class="fas fa-building fa-2x"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center">
+                      <h4 id="facility-name" class="text-xl font-medium text-gray-900 mr-2"></h4>
+                      <button id="edit-facility-name" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                    </div>
+                    <div class="flex items-center">
+                      <p id="facility-title" class="text-gray-600 mr-2"></p>
+                      <button id="edit-facility-title" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                    </div>
+                    <p class="text-blue-600 font-medium mt-1">Başvuru No: <span id="facility-application-id"></span></p>
+                  </div>
+                </div>
+                
+                <!-- Tabs -->
+                <div class="border-b border-gray-200">
+                  <ul class="flex -mb-px">
+                    <li class="mr-1">
+                      <button id="tab-info" class="inline-block py-2 px-4 text-blue-500 hover:text-blue-700 font-medium border-b-2 border-blue-500 active-tab">
+                        <i class="fas fa-info-circle mr-1"></i> Tesis Bilgileri
+                      </button>
+                    </li>
+                    <li class="mr-1">
+                      <button id="tab-documents" class="inline-block py-2 px-4 text-gray-500 hover:text-gray-700 font-medium">
+                        <i class="fas fa-file-alt mr-1"></i> Evraklar
+                      </button>
+                    </li>
+                    <li class="mr-1">
+                      <button id="tab-status" class="inline-block py-2 px-4 text-gray-500 hover:text-gray-700 font-medium">
+                        <i class="fas fa-tasks mr-1"></i> Durum Güncelleme
+                      </button>
+                    </li>
+                    <li class="mr-1">
+                      <button id="tab-notes" class="inline-block py-2 px-4 text-gray-500 hover:text-gray-700 font-medium">
+                        <i class="fas fa-sticky-note mr-1"></i> Notlar
+                      </button>
+                    </li>
+                    <li>
+                      <button id="tab-downloads" class="inline-block py-2 px-4 text-gray-500 hover:text-gray-700 font-medium">
+                        <i class="fas fa-download mr-1"></i> İndir
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+                
+                <!-- Tab Content -->
+                <div class="tab-content" style="width: 100%; position: relative;">
+                  <!-- Tab 1: Facility Information -->
+                  <div id="content-info" class="tab-pane" style="width: 100%;">
+                    <!-- Facility Details Container - All form fields will be displayed here -->
+                    <div id="facility-details-container" class="space-y-4">
+                      <!-- This will be populated dynamically with all facility details -->
+                    </div>
+                  </div>
+                  
+                  <!-- Tab 2: Documents -->
+                  <div id="content-documents" class="tab-pane hidden" style="width: 100%;">
+                    <!-- Documents Section -->
+                    <div class="mb-6">
+                      <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-lg font-medium text-gray-900">Belgeler ve Görüntüler</h4>
+                        <button id="add-document-button" class="text-blue-600 hover:text-blue-800 flex items-center">
+                          <i class="fas fa-plus-circle mr-1"></i> Belge/Görüntü Ekle
+                        </button>
+                      </div>
+                      
+                      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <!-- Tesis Fotoğrafı -->
+                        <div class="border border-gray-200 rounded-lg p-2">
+                          <p class="text-sm font-medium text-gray-700 mb-1">Sağlık Tesis Fotoğrafı</p>
+                          <div class="facility-image-container h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                            <img id="facility-image" src="" alt="Tesis Fotoğrafı" class="max-h-full object-contain">
+                            <div id="no-facility-image-icon" class="text-gray-400 text-center hidden">
+                              <i class="fas fa-image fa-3x mb-2"></i>
+                              <p class="text-sm">Görüntü Yok</p>
+                            </div>
+                          </div>
+                          <div class="flex justify-between mt-2">
+                            <span id="no-facility-image" class="text-sm text-red-500 hidden">Görüntü Yok</span>
+                            <a id="download-facility-image" href="#" download class="text-sm text-blue-600 hover:underline">İndir</a>
+                            <button class="upload-image-button text-sm text-green-600 hover:underline" data-field="facilityImage">Yükle</button>
+                          </div>
+                        </div>
+                        
+                        <!-- Sağlık Turizmi Yetki Belgesi -->
+                        <div class="border border-gray-200 rounded-lg p-2">
+                          <p class="text-sm font-medium text-gray-700 mb-1">Sağlık Turizmi Yetki Belgesi</p>
+                          <div class="bg-gray-100 rounded-lg p-3 flex items-center justify-center h-32">
+                            <div id="auth-doc-container" class="flex items-center justify-center">
+                              <div id="auth-doc-content" class="text-center">
+                                <svg class="h-8 w-8 text-gray-500 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <span>Yetki Belgesi</span>
+                              </div>
+                              <div id="no-auth-doc-icon" class="text-gray-400 text-center hidden">
+                                <i class="fas fa-file-excel fa-3x mb-2"></i>
+                                <p class="text-sm">Belge Yok</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="flex justify-between mt-2">
+                            <span id="no-auth-doc" class="text-sm text-red-500 hidden">Belge Yok</span>
+                            <a id="download-auth-doc" href="#" download class="text-sm text-blue-600 hover:underline">İndir</a>
+                            <button class="upload-doc-button text-sm text-green-600 hover:underline" data-field="authorizationDocument">Yükle</button>
+                          </div>
+                        </div>
+                        
+                        <!-- Sağlık Tesis Ruhsatı -->
+                        <div class="border border-gray-200 rounded-lg p-2">
+                          <p class="text-sm font-medium text-gray-700 mb-1">Sağlık Tesis Ruhsatı</p>
+                          <div class="bg-gray-100 rounded-lg p-3 flex items-center justify-center h-32">
+                            <div id="license-container" class="flex items-center justify-center">
+                              <div id="license-content" class="text-center">
+                                <svg class="h-8 w-8 text-gray-500 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <span>Tesis Ruhsatı</span>
+                              </div>
+                              <div id="no-license-icon" class="text-gray-400 text-center hidden">
+                                <i class="fas fa-file-excel fa-3x mb-2"></i>
+                                <p class="text-sm">Belge Yok</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="flex justify-between mt-2">
+                            <span id="no-license" class="text-sm text-red-500 hidden">Belge Yok</span>
+                            <a id="download-license" href="#" download class="text-sm text-blue-600 hover:underline">İndir</a>
+                            <button class="upload-doc-button text-sm text-green-600 hover:underline" data-field="facilityLicense">Yükle</button>
+                          </div>
+                        </div>
+                        
+                        <!-- Tesis Logosu -->
+                        <div class="border border-gray-200 rounded-lg p-2">
+                          <p class="text-sm font-medium text-gray-700 mb-1">Tesis Logosu</p>
+                          <div class="logo-container h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                            <img id="logo-image" src="" alt="Tesis Logosu" class="max-h-full object-contain">
+                            <div id="no-logo-icon" class="text-gray-400 text-center hidden">
+                              <i class="fas fa-building fa-3x mb-2"></i>
+                              <p class="text-sm">Logo Yok</p>
+                            </div>
+                          </div>
+                          <div class="flex justify-between mt-2">
+                            <span id="no-logo" class="text-sm text-red-500 hidden">Logo Yok</span>
+                            <a id="download-logo" href="#" download class="text-sm text-blue-600 hover:underline">İndir</a>
+                            <button class="upload-image-button text-sm text-green-600 hover:underline" data-field="facilityLogo">Yükle</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Gallery Section -->
+                    <div id="facility-gallery" class="mb-6">
+                      <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-lg font-medium text-gray-900">Klinik Fotoğrafları</h4>
+                        <button id="add-gallery-image" class="text-blue-600 hover:text-blue-800 flex items-center" data-field="galleryImage">
+                          <i class="fas fa-plus-circle mr-1"></i> Fotoğraf Ekle
+                        </button>
+                      </div>
+                      <div id="gallery-container" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- Gallery images will be loaded dynamically -->
+                      </div>
+                      <div id="no-gallery" class="hidden py-4 text-center">
+                        <p class="text-gray-500">Henüz klinik fotoğrafı yüklenmemiş.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Tab 3: Status Update -->
+                  <div id="content-status" class="tab-pane hidden" style="width: 100%;">
+                    <!-- Status Update -->
+                    <div class="mb-6">
+                      <h4 class="text-lg font-medium text-gray-900 mb-3">Durum Güncelleme</h4>
+                      <form id="status-form" class="space-y-4">
+                        <input type="hidden" id="facility-id">
+                        <div>
+                          <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Durum</label>
+                          <select id="status" name="status" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="Bekliyor">Bekliyor</option>
+                            <option value="Onaylandı">Onaylandı</option>
+                            <option value="Tamamlandı">Tamamlandı</option>
+                            <option value="Belge Bekleniyor">Belge Bekleniyor</option>
+                            <option value="Bakanlıkta">Bakanlıkta</option>
+                            <option value="İptal Edildi">İptal Edildi</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label for="admin-notes" class="block text-sm font-medium text-gray-700 mb-1">Yönetici Notu</label>
+                          <textarea id="admin-notes" name="adminNotes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div class="flex space-x-3">
+                          <button type="submit" class="px-6 py-2 bg-blue-700 text-white font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            Durumu Güncelle
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                  
+                  <!-- Tab 4: Admin Notes History -->
+                  <div id="content-notes" class="tab-pane hidden" style="width: 100%;">
+                    <!-- Admin Notes History -->
+                    <div id="admin-notes-history" class="mb-6">
+                      <h4 class="text-lg font-medium text-gray-900 mb-3">Yönetici Notları Geçmişi</h4>
+                      <div id="notes-container" class="space-y-3">
+                        <!-- Notes will be loaded dynamically -->
+                      </div>
+                      <div id="no-notes" class="hidden py-4">
+                        <p class="text-gray-500">Henüz yönetici notu eklenmemiş.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Tab 5: Downloads -->
+                  <div id="content-downloads" class="tab-pane hidden" style="width: 100%;">
+                    <!-- Downloads Section -->
+                    <div class="mb-6">
+                      <h4 class="text-lg font-medium text-gray-900 mb-3">Tesis Dosyalarını İndir</h4>
+                      <p class="text-sm text-gray-600 mb-4">Tesise ait tüm dosyaları indirebilirsiniz.</p>
+                      
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- PDF Download Option -->
+                        <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                          <div class="flex items-center">
+                            <div class="bg-red-100 p-3 rounded-full mr-3">
+                              <i class="fas fa-file-pdf text-red-600 text-xl"></i>
+                            </div>
+                            <div>
+                              <h5 class="font-medium">Tesis Bilgileri (PDF)</h5>
+                              <p class="text-sm text-gray-600">Tesise ait tüm bilgileri PDF formatında indir</p>
+                            </div>
+                          </div>
+                          <button id="download-pdf-btn" class="mt-3 w-full px-4 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center justify-center">
+                            <i class="fas fa-download mr-2"></i> PDF İndir
+                          </button>
+                        </div>
+                        
+                        <!-- ZIP Download Option -->
+                        <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                          <div class="flex items-center">
+                            <div class="bg-blue-100 p-3 rounded-full mr-3">
+                              <i class="fas fa-file-archive text-blue-600 text-xl"></i>
+                            </div>
+                            <div>
+                              <h5 class="font-medium">Tüm Dosyaları İndir (ZIP)</h5>
+                              <p class="text-sm text-gray-600">Tesise ait tüm dökümanları sıkıştırılmış dosya olarak indir</p>
+                            </div>
+                          </div>
+                          <button id="download-zip-btn" class="mt-3 w-full px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center">
+                            <i class="fas fa-download mr-2"></i> ZIP İndir
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <!-- File List -->
+                      <div class="mt-6">
+                        <h5 class="font-medium mb-2">Dosya Listesi</h5>
+                        <div id="facility-files-list" class="border border-gray-200 rounded-lg divide-y">
+                          <!-- Files will be listed here dynamically -->
+                        </div>
+                        <div id="no-files" class="hidden py-4 text-center border border-gray-200 rounded-lg mt-2">
+                          <p class="text-gray-500">Henüz hiç dosya yüklenmemiş.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- File Upload Modal -->
+      <div id="upload-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+          <div class="bg-blue-700 px-6 py-4 flex justify-between items-center">
+            <h3 id="upload-modal-title" class="text-white text-lg font-medium">Dosya Yükle</h3>
+            <button id="close-upload-modal" class="text-white hover:text-blue-200">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div class="p-6">
+            <form id="file-upload-form" class="space-y-4">
+              <input type="hidden" id="upload-field-name">
+              <input type="hidden" id="upload-facility-id">
+              
+              <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <input type="file" id="file-input" class="hidden">
+                <label for="file-input" class="cursor-pointer">
+                  <div class="space-y-2">
+                    <i class="fas fa-cloud-upload-alt text-3xl text-blue-500"></i>
+                    <p class="text-gray-700">Dosya yüklemek için tıklayın veya sürükleyin</p>
+                    <p class="text-xs text-gray-500" id="file-types-hint">Desteklenen formatlar: JPG, PNG, PDF</p>
+                  </div>
+                </label>
+                <div id="selected-file" class="mt-4 hidden">
+                  <p class="text-sm font-medium text-gray-800">Seçilen dosya:</p>
+                  <p id="file-name" class="text-sm text-blue-600"></p>
+                </div>
+              </div>
+              
+              <div class="flex justify-end">
+                <button type="button" id="cancel-upload" class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md mr-2 hover:bg-gray-50">
+                  İptal
+                </button>
+                <button type="submit" id="confirm-upload" class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800">
+                  Yükle
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Edit Field Modal -->
+      <div id="edit-field-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+          <div class="bg-blue-700 px-6 py-4 flex justify-between items-center">
+            <h3 id="edit-field-modal-title" class="text-white text-lg font-medium">Alan Düzenle</h3>
+            <button id="close-edit-field-modal" class="text-white hover:text-blue-200">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div class="p-6">
+            <form id="edit-field-form" class="space-y-4">
+              <input type="hidden" id="edit-field-name">
+              <input type="hidden" id="edit-facility-id">
+              
+              <div id="edit-field-container">
+                <!-- Field edit input will be inserted here dynamically -->
+              </div>
+              
+              <div class="flex justify-end">
+                <button type="button" id="cancel-edit" class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md mr-2 hover:bg-gray-50">
+                  İptal
+                </button>
+                <button type="submit" id="confirm-edit" class="px-4 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800">
+                  Kaydet
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-blue-900 text-white">
+      <div class="container mx-auto px-4 md:px-6 py-4">
+        <p class="text-center text-sm">© 2025 Sağlık Tesisi Kayıt Portalı. Tüm hakları saklıdır.</p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Form Editor Modal -->
+  <div id="form-editor-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center overflow-auto">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-6xl mx-4 my-6">
+      <div class="flex justify-between items-center px-6 py-4 border-b">
+        <h2 class="text-xl font-bold text-gray-900">Form Düzenleme Paneli</h2>
+        <button id="close-form-editor" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="p-6">
+        <!-- Açıklama yazısını kaldırıyorum -->
+        
+        <!-- Tabs -->
+        <div class="border-b border-gray-200 mb-6">
+          <ul class="flex -mb-px">
+            <li class="mr-2">
+              <button class="form-editor-tab py-2 px-4 border-b-2 border-transparent text-gray-500 hover:text-blue-700 font-medium text-xs" data-tab="tab-sections">
+                Bölümler
+              </button>
+            </li>
+            <li class="mr-2">
+              <button class="form-editor-tab py-2 px-4 border-b-2 border-transparent text-gray-500 hover:text-blue-700 font-medium text-xs" data-tab="tab-fields">
+                Form Alanları
+              </button>
+            </li>
+            <li class="mr-2">
+              <button class="form-editor-tab py-2 px-4 border-b-2 border-transparent text-gray-500 hover:text-blue-700 font-medium text-xs" data-tab="tab-preview">
+                Önizleme
+              </button>
+            </li>
+          </ul>
+        </div>
+        
+        <!-- Tab Content -->
+        <div class="form-editor-content">
+          <!-- Sections Tab -->
+          <div id="tab-sections" class="tab-pane">
+            <div class="flex justify-between mb-4">
+              <h3 class="text-base font-medium text-gray-800">Form Bölümleri</h3>
+              <button id="add-section-btn" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded-md text-xs font-medium">
+                <i class="fas fa-plus mr-1"></i> Yeni Bölüm Ekle
+              </button>
+            </div>
+            
+            <div class="bg-white border border-gray-200 rounded-md">
+              <div id="sections-list" class="divide-y divide-gray-200">
+                <!-- Sections will be rendered here dynamically -->
+                <div class="p-4 text-gray-500 text-center text-xs">Bölümler yükleniyor...</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Fields Tab -->
+          <div id="tab-fields" class="tab-pane hidden">
+            <div class="flex justify-between mb-4">
+              <h3 class="text-base font-medium text-gray-800">Form Alanları</h3>
+              <button id="add-field-btn" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded-md text-xs font-medium">
+                <i class="fas fa-plus mr-1"></i> Yeni Alan Ekle
+              </button>
+            </div>
+            
+            <div class="mb-4">
+              <label for="section-filter" class="block text-xs font-medium text-gray-700 mb-1">Bölüm Filtresi</label>
+              <select id="section-filter" class="border border-gray-300 rounded-md px-3 py-1 w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs">
+                <!-- Section options will be added dynamically -->
+              </select>
+            </div>
+            
+            <div class="bg-white border border-gray-200 rounded-md">
+              <div id="fields-list" class="divide-y divide-gray-200">
+                <!-- Fields will be rendered here dynamically -->
+                <div class="p-4 text-gray-500 text-center text-xs">Alanlar yükleniyor...</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Preview Tab -->
+          <div id="tab-preview" class="tab-pane hidden">
+            <div class="mb-4">
+              <h3 class="text-base font-medium text-gray-800">Form Önizleme</h3>
+              <p class="text-gray-600 text-xs">Bu, form düzenlemelerinden sonra başvuru formunun nasıl görüneceğini gösterir.</p>
+            </div>
+            
+            <div class="bg-white border border-gray-200 rounded-md p-4">
+              <div id="form-preview">
+                <!-- Form preview will be rendered here -->
+                <div class="text-gray-500 text-center text-xs">Önizleme yükleniyor...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="px-6 py-4 border-t bg-gray-50 flex justify-end">
+        <button id="cancel-form-edit" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-1 px-3 rounded-md mr-2 text-xs">
+          İptal
+        </button>
+        <button id="save-form-changes" class="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-md text-xs">
+          Değişiklikleri Kaydet
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Add Section Modal -->
+  <div id="add-section-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div class="flex justify-between items-center px-6 py-4 border-b">
+        <h2 class="text-lg font-bold text-gray-900">Yeni Bölüm Ekle</h2>
+        <button id="close-add-section" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="p-6">
+        <form id="add-section-form">
+          <div class="mb-4">
+            <label for="section-id" class="block text-sm font-medium text-gray-700 mb-1">Bölüm ID</label>
+            <input type="text" id="section-id" name="section-id" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ornek-bolum-id" required>
+            <p class="text-xs text-gray-500 mt-1">ID, sadece harfler, sayılar ve tire içerebilir.</p>
+          </div>
+          
+          <div class="mb-4">
+            <label for="section-title" class="block text-sm font-medium text-gray-700 mb-1">Bölüm Başlığı</label>
+            <input type="text" id="section-title" name="section-title" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Yeni Bölüm" required>
+          </div>
+          
+          <div class="mb-4">
+            <label for="section-description" class="block text-sm font-medium text-gray-700 mb-1">Açıklama (İsteğe bağlı)</label>
+            <textarea id="section-description" name="section-description" rows="3" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Bölüm açıklaması..."></textarea>
+          </div>
+          
+          <div class="mb-4">
+            <label for="section-order" class="block text-sm font-medium text-gray-700 mb-1">Sıralama</label>
+            <input type="number" id="section-order" name="section-order" min="1" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" value="1">
+          </div>
+        </form>
+      </div>
+      
+      <div class="px-6 py-4 border-t bg-gray-50 flex justify-end">
+        <button id="cancel-add-section" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-md mr-2">
+          İptal
+        </button>
+        <button id="save-new-section" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md">
+          Bölüm Ekle
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Add Field Modal -->
+  <div id="add-field-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div class="flex justify-between items-center px-6 py-4 border-b">
+        <h2 class="text-lg font-bold text-gray-900">Yeni Alan Ekle</h2>
+        <button id="close-add-field" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="p-6">
+        <form id="add-field-form">
+          <div class="mb-4">
+            <label for="field-section" class="block text-sm font-medium text-gray-700 mb-1">Bölüm</label>
+            <select id="field-section" name="field-section" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+              <!-- Section options will be added dynamically -->
+            </select>
+          </div>
+          
+          <div class="mb-4">
+            <label for="field-id" class="block text-sm font-medium text-gray-700 mb-1">Alan ID</label>
+            <input type="text" id="field-id" name="field-id" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ornek-alan-id" required>
+            <p class="text-xs text-gray-500 mt-1">ID, sadece harfler, sayılar ve tire içerebilir.</p>
+          </div>
+          
+          <div class="mb-4">
+            <label for="field-label" class="block text-sm font-medium text-gray-700 mb-1">Alan Etiketi</label>
+            <input type="text" id="field-label" name="field-label" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Yeni Alan" required>
+          </div>
+          
+          <div class="mb-4">
+            <label for="field-type" class="block text-sm font-medium text-gray-700 mb-1">Alan Tipi</label>
+            <select id="field-type" name="field-type" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+              <option value="text">Metin Kutusu</option>
+              <option value="email">E-posta</option>
+              <option value="number">Sayı</option>
+              <option value="tel">Telefon</option>
+              <option value="date">Tarih</option>
+              <option value="select">Açılır Liste</option>
+              <option value="checkbox">Onay Kutusu</option>
+              <option value="radio">Seçenek Düğmesi</option>
+              <option value="textarea">Çok Satırlı Metin</option>
+              <option value="file">Dosya Yükleme</option>
+            </select>
+          </div>
+          
+          <div id="field-options-container" class="mb-4 hidden">
+            <label for="field-options" class="block text-sm font-medium text-gray-700 mb-1">Seçenekler (Her satıra bir seçenek yazın)</label>
+            <textarea id="field-options" name="field-options" rows="3" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Seçenek 1&#10;Seçenek 2&#10;Seçenek 3"></textarea>
+          </div>
+          
+          <div class="mb-4">
+            <label for="field-placeholder" class="block text-sm font-medium text-gray-700 mb-1">Yer Tutucu Metni (İsteğe bağlı)</label>
+            <input type="text" id="field-placeholder" name="field-placeholder" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Bir şeyler yazın...">
+          </div>
+          
+          <div class="mb-4">
+            <label for="field-order" class="block text-sm font-medium text-gray-700 mb-1">Sıralama</label>
+            <input type="number" id="field-order" name="field-order" min="1" class="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500" value="1">
+          </div>
+          
+          <div class="mb-4 flex items-center">
+            <input type="checkbox" id="field-required" name="field-required" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+            <label for="field-required" class="ml-2 block text-sm text-gray-700">Zorunlu Alan</label>
+          </div>
+        </form>
+      </div>
+      
+      <div class="px-6 py-4 border-t bg-gray-50 flex justify-end">
+        <button id="cancel-add-field" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-md mr-2">
+          İptal
+        </button>
+        <button id="save-new-field" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md">
+          Alan Ekle
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html> 
